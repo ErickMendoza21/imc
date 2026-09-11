@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 export interface FormFieldProps {
   label: string;
   htmlFor: string;
+  required?: boolean;
   error?: string;
   children: ReactNode;
   className?: string;
@@ -11,6 +12,7 @@ export interface FormFieldProps {
 export function FormField({
   label,
   htmlFor,
+  required = false,
   error,
   children,
   className = "",
@@ -22,6 +24,11 @@ export function FormField({
         className="text-sm font-semibold text-[var(--color-title)] select-none"
       >
         {label}
+        {required && (
+          <span className="text-[var(--color-danger)] ml-0.5" aria-hidden="true">
+            *
+          </span>
+        )}
       </label>
       {children}
       {error && (

@@ -4,6 +4,7 @@ import { useState, FormEvent } from "react";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
 import Swal from "sweetalert2";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/atoms/Button";
 import { Input } from "@/components/atoms/Input";
 import { FormField } from "@/components/molecules/FormField";
@@ -12,6 +13,7 @@ import { FormField } from "@/components/molecules/FormField";
 const MOCK_CREDENTIALS = { usuario: "admin", contrasena: "1234" };
 
 export function LoginForm() {
+  const router = useRouter();
   const [usuario, setUsuario] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
@@ -38,6 +40,8 @@ export function LoginForm() {
         title: '¡Bienvenido!',
         text: 'Sesión iniciada correctamente',
         confirmButtonColor: 'var(--color-primary)'
+      }).then(() => {
+        router.push("/nueva-solicitud");
       });
     } else {
       setError("Usuario o contraseña incorrectos.");

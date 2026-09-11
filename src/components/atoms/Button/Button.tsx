@@ -2,7 +2,7 @@ import { ButtonHTMLAttributes, ReactNode } from "react";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
-  variant?: "primary" | "ghost";
+  variant?: "primary" | "outline" | "ghost";
   className?: string;
 }
 
@@ -31,11 +31,33 @@ export function Button({
     );
   }
 
+  if (variant === "outline") {
+    return (
+      <button
+        className={`
+          flex items-center justify-center gap-2
+          px-5 py-2.5 rounded-md
+          bg-white border border-[var(--color-border)]
+          text-[var(--color-title)] text-sm font-semibold
+          cursor-pointer
+          transition-all duration-150
+          hover:border-[var(--color-secondary)] hover:text-[var(--color-secondary)]
+          disabled:opacity-60 disabled:cursor-not-allowed
+          ${className}
+        `}
+        {...props}
+      >
+        {children}
+      </button>
+    );
+  }
+
+  // primary (default)
   return (
     <button
       className={`
-        flex items-center justify-center w-full
-        px-4 py-3 rounded-md
+        flex items-center justify-center gap-2 w-full
+        px-5 py-2.5 rounded-md
         bg-[var(--color-primary)] text-white
         text-[0.95rem] font-semibold
         shadow-[var(--shadow-btn)]
