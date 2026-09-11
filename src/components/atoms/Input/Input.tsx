@@ -2,7 +2,7 @@
 
 import { forwardRef, InputHTMLAttributes, ReactNode } from "react";
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "prefix"> {
   /** Ícono o elemento al inicio del input */
   prefix?: ReactNode;
   /** Ícono o elemento al final del input */
