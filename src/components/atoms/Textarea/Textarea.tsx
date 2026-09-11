@@ -3,7 +3,7 @@
 import { ReactNode, TextareaHTMLAttributes, useState } from "react";
 
 export interface TextareaProps
-  extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "prefix"> {
   /** Ícono en la esquina superior izquierda */
   prefix?: ReactNode;
   /** Muestra contador de caracteres si se proporciona maxLength */

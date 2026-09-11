@@ -6,7 +6,7 @@ export interface SelectOption {
   label: string;
 }
 
-export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "prefix"> {
   options: SelectOption[];
   placeholder?: string;
   /** Ícono a la izquierda del select */
