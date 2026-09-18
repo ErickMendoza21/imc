@@ -35,7 +35,7 @@ jobs:
       - name: Compilar el proyecto
         run: npm run build
         env:
-          NEXT_PUBLIC_IMC: ${{ vars.NEXT_PUBLIC_IMC }}
+          NEXT_PUBLIC_IMC: ${{ vars.NEXT_PUBLIC_IMC || '/imc' }}
 
       - name: Subir el resultado para el despliegue
         uses: actions/upload-pages-artifact@v3
