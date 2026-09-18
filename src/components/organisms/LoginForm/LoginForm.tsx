@@ -96,7 +96,7 @@ export function LoginForm() {
         {/* Logo */}
         <div className="flex justify-center">
           <Image
-            src="/images/logo.png"
+            src={`${process.env.NEXT_PUBLIC_IMC || ''}/images/logo.png`}
             alt="Logo IMC"
             width={72}
             height={72}

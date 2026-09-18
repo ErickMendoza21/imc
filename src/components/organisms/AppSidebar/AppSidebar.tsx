@@ -14,7 +14,7 @@ export function AppSidebar() {
       {/* ── Logo ── */}
       <div className="flex justify-center items-center py-5 px-4 border-b border-[var(--color-border)]">
         <Image
-          src="/images/logo.png"
+          src={`${process.env.NEXT_PUBLIC_IMC || ''}/images/logo.png`}
           alt="Logo IMC"
           width={52}
           height={52}
