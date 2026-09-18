@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
 import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
@@ -95,12 +94,11 @@ export function LoginForm() {
       >
         {/* Logo */}
         <div className="flex justify-center">
-          <Image
+          <img
             src={`${process.env.NEXT_PUBLIC_IMC || ''}/images/logo.png`}
             alt="Logo IMC"
             width={72}
             height={72}
-            priority
             className="object-contain rounded-full"
           />
         </div>
