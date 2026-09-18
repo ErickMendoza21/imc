@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/constants/navigation";
 
@@ -13,13 +12,12 @@ export function AppSidebar() {
 
       {/* ── Logo ── */}
       <div className="flex justify-center items-center py-5 px-4 border-b border-[var(--color-border)]">
-        <Image
+        <img
           src={`${process.env.NEXT_PUBLIC_IMC || ''}/images/logo.png`}
           alt="Logo IMC"
           width={52}
           height={52}
           className="object-contain rounded-full"
-          priority
         />
       </div>
 
