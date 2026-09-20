@@ -7,23 +7,38 @@ export interface RequisitoData {
   fechaEmision: string;
 }
 
-export interface StepRequisitosTARData {
+export interface StepRequisitosGeneralesData {
+  clasificacion: "TAR" | "NO_TAR" | "";
   requisitos: Record<string, RequisitoData>;
 }
 
-interface StepRequisitosTARProps {
-  data: StepRequisitosTARData;
+interface StepRequisitosGeneralesProps {
+  data: StepRequisitosGeneralesData;
   setData: React.Dispatch<React.SetStateAction<any>>;
 }
 
-const REQUISITOS = [
-  { id: "pets", label: "PETS (Procedimiento de Trabajo Seguro)" },
-  { id: "programa", label: "Programa de seguridad y salud en el trabajo" },
-  { id: "iperc", label: "IPERC (Identificación de peligros y evaluación de riesgos)" },
-  { id: "otros", label: "Otros documentos" },
+const REQUISITOS_NO_TAR = [
+  { id: "personal", label: "Lista de personal (Data de plataforma)" },
+  { id: "iperc", label: "Matriz IPERC" },
+  { id: "directorio", label: "Directorio telefónico en caso de emergencia y red de clínicas cercanas" },
+  { id: "matriz_aspectos", label: "Matriz de aspectos e impactos ambientales de la actividad a realizar" },
 ];
 
-export function StepRequisitosTAR({ data, setData }: StepRequisitosTARProps) {
+const REQUISITOS_TAR_EXTRAS = [
+  { id: "pets", label: "PETS (Procedimiento escrito de trabajo seguro)" },
+  { id: "plan_emergencia", label: "Plan de emergencia de acuerdo al servicio" },
+  { id: "lista_epp", label: "Lista de EPP" },
+  { id: "fichas_epp", label: "Fichas técnicas de EPP" },
+];
+
+export function StepRequisitosGenerales({ data, setData }: StepRequisitosGeneralesProps) {
+  const isTar = data.clasificacion === "TAR";
+  
+  // Si es TAR, se muestran los 4 básicos + 4 extras. Si es NO_TAR, solo los 4 básicos.
+  const requisitosParaMostrar = isTar 
+    ? [...REQUISITOS_NO_TAR, ...REQUISITOS_TAR_EXTRAS]
+    : REQUISITOS_NO_TAR;
+
   const handleChangeFecha = (id: string, fecha: string) => {
     setData((prev: any) => ({
       ...prev,
@@ -54,15 +69,15 @@ export function StepRequisitosTAR({ data, setData }: StepRequisitosTARProps) {
     <section className="px-8 py-6 flex flex-col gap-5">
       <div className="flex flex-col gap-1 mb-2">
         <h2 className="text-lg font-bold text-[var(--color-title)]">
-          Requisitos generales (TAR)
+          Requisitos Generales {isTar ? "(TAR)" : "(No TAR)"}
         </h2>
         <p className="text-sm text-[var(--color-text-secondary)]">
-          Adjunta los documentos requeridos y registra la fecha de emisión.
+          Adjunta los {requisitosParaMostrar.length} documentos requeridos y registra la fecha de emisión.
         </p>
       </div>
 
       <div className="flex flex-col gap-4">
-        {REQUISITOS.map((req) => {
+        {requisitosParaMostrar.map((req) => {
           const docData = data.requisitos?.[req.id] || { fechaEmision: "", archivo: null };
 
           return (
@@ -77,7 +92,7 @@ export function StepRequisitosTAR({ data, setData }: StepRequisitosTARProps) {
 
               {/* Título y botón cargar */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[var(--color-primary)] mb-2 truncate">
+                <p className="text-sm font-bold text-[var(--color-primary)] mb-2 pr-2 leading-tight" title={req.label}>
                   {req.label}
                 </p>
                 <div className="flex items-center gap-3">
@@ -86,6 +101,7 @@ export function StepRequisitosTAR({ data, setData }: StepRequisitosTARProps) {
                     {docData.archivo ? docData.archivo.name : "Cargar archivo"}
                     <input
                       type="file"
+                      accept={["iperc", "matriz_aspectos", "pets"].includes(req.id) ? ".pdf,.xls,.xlsx" : ".pdf"}
                       className="hidden"
                       onChange={(e) => handleFileChange(req.id, e.target.files?.[0] || null)}
                     />
@@ -94,22 +110,22 @@ export function StepRequisitosTAR({ data, setData }: StepRequisitosTARProps) {
               </div>
 
               {/* Input de Fecha de Emisión */}
-              <div className="w-48 shrink-0 flex flex-col gap-1.5">
-                <label
-                  htmlFor={`fecha-${req.id}`}
-                  className="text-xs font-semibold text-[var(--color-text-secondary)]"
-                >
-                  Fecha de emisión
-                </label>
-                <Input
-                  id={`fecha-${req.id}`}
-                  type="date"
-                  value={docData.fechaEmision}
-                  onChange={(e) => handleChangeFecha(req.id, e.target.value)}
-                // The native date input shows a calendar icon on most modern browsers, 
-                // but we could also use suffix={<Calendar size={15} />} if desired
-                />
-              </div>
+              {req.id !== "personal" && req.id !== "lista_epp" && req.id !== "fichas_epp" && (
+                <div className="w-48 shrink-0 flex flex-col gap-1.5">
+                  <label
+                    htmlFor={`fecha-${req.id}`}
+                    className="text-xs font-semibold text-[var(--color-text-secondary)]"
+                  >
+                    Fecha de emisión
+                  </label>
+                  <Input
+                    id={`fecha-${req.id}`}
+                    type="date"
+                    value={docData.fechaEmision}
+                    onChange={(e) => handleChangeFecha(req.id, e.target.value)}
+                  />
+                </div>
+              )}
             </div>
           );
         })}

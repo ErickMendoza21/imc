@@ -1,0 +1,1 @@
+export { SolicitudesTable } from "./SolicitudesTable";

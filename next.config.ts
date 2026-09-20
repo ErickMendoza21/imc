@@ -1,13 +1,20 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  output: "export",
+/**
+ * NEXT_PUBLIC_IMC se define vacía en .env (dev local)
+ * y como "/imc" en el workflow de GitHub Actions (deploy).
+ */
+const isGitHubPages = !!process.env.NEXT_PUBLIC_IMC;
 
-  basePath: "/imc",
+const nextConfig: NextConfig = {
+  ...(isGitHubPages && {
+    output: "export",
+    basePath: process.env.NEXT_PUBLIC_IMC,
+  }),
 
   images: {
     unoptimized: true,
   },
 };
 
-export default nextConfig;
+export default nextConfig;

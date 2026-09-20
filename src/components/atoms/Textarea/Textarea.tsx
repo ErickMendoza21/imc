@@ -19,6 +19,7 @@ export function Textarea({
   onChange,
   defaultValue,
   value,
+  disabled,
   ...props
 }: TextareaProps) {
   const [count, setCount] = useState(
@@ -39,15 +40,15 @@ export function Textarea({
       className={`
         relative w-full
         border border-[var(--color-border)] rounded-md
-        bg-white
         transition-all duration-150
         focus-within:border-[var(--color-secondary)]
         focus-within:ring-3 focus-within:ring-[var(--color-secondary)]/15
+        ${disabled ? "bg-[var(--color-bg-disabled)] opacity-80 cursor-not-allowed" : "bg-white"}
         ${className}
       `}
     >
       {prefix && (
-        <span className="absolute top-3 left-3 text-[var(--color-secondary)] pointer-events-none">
+        <span className={`absolute top-3 left-3 pointer-events-none ${disabled ? "text-[var(--color-text-secondary)]/50" : "text-[var(--color-secondary)]"}`}>
           {prefix}
         </span>
       )}
@@ -57,13 +58,15 @@ export function Textarea({
           ${prefix ? "pl-9" : "pl-3"} pr-3 pt-3
           ${showCount && maxLength ? "pb-7" : "pb-3"}
           text-[0.9rem] min-h-[100px]
-          text-[var(--color-title)] font-[var(--font-geist-sans)]
+          font-[var(--font-geist-sans)]
           placeholder:text-[var(--color-text-secondary)]/70
+          ${disabled ? "text-[var(--color-text-secondary)] cursor-not-allowed" : "text-[var(--color-title)]"}
         `}
         maxLength={maxLength}
         value={value}
         defaultValue={defaultValue}
         onChange={handleChange}
+        disabled={disabled}
         {...props}
       />
       {showCount && maxLength !== undefined && (
