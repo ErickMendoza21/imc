@@ -1,0 +1,1 @@
+export { SolicitanteInicio } from "./SolicitanteInicio";

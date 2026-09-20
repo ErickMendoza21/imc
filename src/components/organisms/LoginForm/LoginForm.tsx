@@ -7,9 +7,10 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/atoms/Button";
 import { Input } from "@/components/atoms/Input";
 import { FormField } from "@/components/molecules/FormField";
+import { getUsuarios } from "@/lib/services/usuarios";
 
-// MOCK — pendiente de integración real
-const MOCK_CREDENTIALS = { usuario: "admin", contrasena: "1234" };
+// MOCK — credencial hardcodeada del admin (pendiente de integración real)
+const ADMIN_CREDENTIAL = { usuario: "admin", contrasena: "1234", rol: "admin" };
 
 export function LoginForm() {
   const router = useRouter();
@@ -30,18 +31,73 @@ export function LoginForm() {
     // MOCK — pendiente de integración real
     await new Promise((r) => setTimeout(r, 800));
 
-    if (
-      usuario === MOCK_CREDENTIALS.usuario &&
-      contrasena === MOCK_CREDENTIALS.contrasena
-    ) {
+    // Verificar admin hardcodeado
+    if (usuario === ADMIN_CREDENTIAL.usuario && contrasena === ADMIN_CREDENTIAL.contrasena) {
+      localStorage.setItem("userRole", ADMIN_CREDENTIAL.rol);
+      localStorage.setItem("username", ADMIN_CREDENTIAL.usuario);
       Swal.fire({
         icon: 'success',
         title: '¡Bienvenido!',
-        text: 'Sesión iniciada correctamente',
+        text: `Sesión iniciada correctamente como administrador`,
         confirmButtonColor: 'var(--color-primary)'
       }).then(() => {
-        router.push("/nueva-solicitud");
+        router.push("/usuarios");
       });
+      setCargando(false);
+      return;
+    }
+
+    // Verificar usuarios creados por el admin
+    // Debug: leer directamente de localStorage para verificar integridad
+    const rawStorage = localStorage.getItem("imc_usuarios");
+    console.log("=== DEBUG LOGIN ===");
+    console.log("Raw localStorage imc_usuarios:", rawStorage);
+    console.log("Input usuario:", JSON.stringify(usuario));
+    console.log("Input contrasena:", JSON.stringify(contrasena));
+
+    const usuarios = getUsuarios();
+    console.log("Usuarios parseados:", usuarios.length, usuarios.map(u => ({
+      id: u.id,
+      username: u.username,
+      password: u.password,
+      activo: u.activo,
+    })));
+
+    // Búsqueda flexible: case-insensitive en username, trim en ambos campos
+    const userFound = usuarios.find(
+      (u) =>
+        u.username.trim().toLowerCase() === usuario.trim().toLowerCase() &&
+        u.password.trim() === contrasena.trim()
+    );
+
+    console.log("Resultado búsqueda:", userFound
+      ? `ENCONTRADO: ${userFound.username} (activo: ${userFound.activo})`
+      : "NO ENCONTRADO — comparaciones individuales:");
+
+    if (!userFound) {
+      // Log detallado de por qué no coincidió cada usuario
+      usuarios.forEach((u, i) => {
+        const userMatch = u.username.trim().toLowerCase() === usuario.trim().toLowerCase();
+        const passMatch = u.password.trim() === contrasena.trim();
+        console.log(`  [${i}] user="${u.username}" userMatch=${userMatch}, passMatch=${passMatch}`);
+      });
+    }
+
+    if (userFound) {
+      if (!userFound.activo) {
+        setError("Tu cuenta ha sido deshabilitada. Contacta al administrador.");
+      } else {
+        localStorage.setItem("userRole", userFound.rol);
+        localStorage.setItem("username", userFound.username);
+        Swal.fire({
+          icon: 'success',
+          title: '¡Bienvenido!',
+          text: `Sesión iniciada correctamente como ${userFound.rol}`,
+          confirmButtonColor: 'var(--color-primary)'
+        }).then(() => {
+          router.push("/inicio");
+        });
+      }
     } else {
       setError("Usuario o contraseña incorrectos.");
     }

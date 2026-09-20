@@ -19,6 +19,7 @@ export function Select({
   placeholder = "Selecciona una opción",
   prefix,
   className = "",
+  disabled,
   ...props
 }: SelectProps) {
   return (
@@ -26,24 +27,26 @@ export function Select({
       className={`
         relative flex items-center w-full
         border border-[var(--color-border)] rounded-md
-        bg-white
         transition-all duration-150
         focus-within:border-[var(--color-secondary)]
         focus-within:ring-3 focus-within:ring-[var(--color-secondary)]/15
+        ${disabled ? "bg-[var(--color-bg-disabled)] opacity-80 cursor-not-allowed" : "bg-white"}
         ${className}
       `}
     >
       {prefix && (
-        <span className="flex items-center pl-3 text-[var(--color-secondary)] shrink-0 pointer-events-none">
+        <span className={`flex items-center pl-3 shrink-0 pointer-events-none ${disabled ? "text-[var(--color-text-secondary)]/50" : "text-[var(--color-secondary)]"}`}>
           {prefix}
         </span>
       )}
       <select
-        className="
+        className={`
           flex-1 appearance-none border-none outline-none bg-transparent
-          px-3 py-[10px] text-[0.9rem] cursor-pointer
-          text-[var(--color-title)] font-[var(--font-geist-sans)]
-        "
+          px-3 py-[10px] text-[0.9rem]
+          font-[var(--font-geist-sans)]
+          ${disabled ? "text-[var(--color-text-secondary)] cursor-not-allowed" : "text-[var(--color-title)] cursor-pointer"}
+        `}
+        disabled={disabled}
         {...props}
       >
         <option value="" disabled>

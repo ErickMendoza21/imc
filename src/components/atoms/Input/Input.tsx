@@ -11,32 +11,34 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ prefix, suffix, className = "", ...props }, ref) => {
+  ({ prefix, suffix, className = "", disabled, ...props }, ref) => {
     return (
       <div
         className={`
           flex items-center w-full
           border border-[var(--color-border)] rounded-md
-          bg-white
           transition-all duration-150
           focus-within:border-[var(--color-secondary)]
           focus-within:ring-3 focus-within:ring-[var(--color-secondary)]/15
+          ${disabled ? "bg-[var(--color-bg-disabled)] opacity-80 cursor-not-allowed" : "bg-white"}
           ${className}
         `}
       >
         {prefix && (
-          <span className="flex items-center pl-3 text-[var(--color-secondary)] shrink-0">
+          <span className={`flex items-center pl-3 shrink-0 ${disabled ? "text-[var(--color-text-secondary)]/50" : "text-[var(--color-secondary)]"}`}>
             {prefix}
           </span>
         )}
         <input
           ref={ref}
-          className="
+          disabled={disabled}
+          className={`
             flex-1 border-none outline-none bg-transparent
             px-3 py-[10px] text-[0.9rem]
-            text-[var(--color-title)] font-[var(--font-geist-sans)]
+            font-[var(--font-geist-sans)]
             placeholder:text-[var(--color-text-secondary)]/70
-          "
+            ${disabled ? "text-[var(--color-text-secondary)] cursor-not-allowed" : "text-[var(--color-title)]"}
+          `}
           {...props}
         />
         {suffix && (

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, FormEvent, useMemo } from "react";
+import { useState, FormEvent, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { FilePlus2, ChevronRight, ChevronLeft } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -8,13 +9,20 @@ import { Button } from "@/components/atoms/Button";
 import { Stepper } from "@/components/molecules/Stepper";
 
 import { getStepsNuevaSolicitud } from "@/lib/constants/solicitud";
+import { saveSolicitud } from "@/lib/services/solicitudes";
+import { getUsuarioByUsername } from "@/lib/services/usuarios";
 import { StepDatosSolicitud, StepDatosSolicitudData } from "./StepDatosSolicitud";
-import { StepRequisitosTAR, StepRequisitosTARData } from "./StepRequisitosTAR";
+import { StepRequisitosGenerales, StepRequisitosGeneralesData } from "./StepRequisitosGenerales";
+import { StepPersonal, StepPersonalData } from "./StepPersonal";
+import { StepCargaMasiva, StepCargaMasivaData } from "./StepCargaMasiva";
 
-export interface FormData extends StepDatosSolicitudData, StepRequisitosTARData {}
+export interface FormData extends StepDatosSolicitudData, StepRequisitosGeneralesData, StepPersonalData, StepCargaMasivaData {}
 
 export function NuevaSolicitudForm() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
+  const [role, setRole] = useState<string | null>(null);
+
   const [data, setData] = useState<FormData>({
     empresa: "",
     descripcion: "",
@@ -24,31 +32,91 @@ export function NuevaSolicitudForm() {
     correo: "",
     clasificacion: "",
     requisitos: {},
+    personal: [],
+    cargaMasiva: {},
   });
+
+  useEffect(() => {
+    const currentRole = localStorage.getItem("userRole");
+    setRole(currentRole);
+
+    // Si es solicitante, pre-rellenar los datos desde su perfil de usuario
+    if (currentRole === "solicitante") {
+      const username = localStorage.getItem("username");
+      if (username) {
+        const usuario = getUsuarioByUsername(username);
+        if (usuario) {
+          setData((prev) => ({
+            ...prev,
+            empresa: usuario.empresa,
+            descripcion: usuario.descripcion,
+            sede: usuario.sede,
+            nombreSolicitante: usuario.nombreCompleto,
+            celular: usuario.celular,
+            correo: usuario.correo,
+          }));
+        }
+      }
+    }
+  }, []);
+
+  const isSolicitante = role === "solicitante";
 
   const isTar = data.clasificacion === "TAR";
   const dynamicSteps = useMemo(() => getStepsNuevaSolicitud(isTar), [isTar]);
   const totalSteps = dynamicSteps.length;
 
-  const isStep1Valid =
-    data.empresa.trim() !== "" &&
-    data.descripcion.trim() !== "" &&
-    data.sede !== "" &&
-    data.nombreSolicitante.trim() !== "" &&
-    data.celular.trim() !== "" &&
-    data.correo.trim() !== "" &&
-    data.clasificacion !== "";
+  const isStep1Valid = () => {
+    const baseValid =
+      data.empresa.trim() !== "" &&
+      data.descripcion.trim() !== "" &&
+      data.sede !== "" &&
+      data.nombreSolicitante.trim() !== "" &&
+      data.celular.trim() !== "" &&
+      data.correo.trim() !== "" &&
+      data.clasificacion !== "";
 
-  const isStep2Valid = isTar
-    ? ["pets", "programa", "iperc", "otros"].every(
-        (id) => data.requisitos[id]?.archivo && data.requisitos[id]?.fechaEmision
-      )
-    : true; // si no es TAR, el paso 2 (si existiera) o el step que sea se asume válido o no aplica este chequeo.
+    if (!baseValid) return false;
+    
+    // Tanto para TAR como NO_TAR se deben listar y requerir servicios
+    return (data.serviciosSeleccionados || []).length > 0;
+  };
+
+  const isStep2Valid = () => {
+    const requiredIds = isTar
+      ? ["personal", "iperc", "directorio", "matriz_aspectos", "pets", "plan_emergencia", "lista_epp", "fichas_epp"]
+      : ["personal", "iperc", "directorio", "matriz_aspectos"];
+    
+    return requiredIds.every((id) => {
+      const req = data.requisitos[id];
+      if (!req?.archivo) return false;
+      if (id !== "personal" && id !== "lista_epp" && id !== "fichas_epp" && !req?.fechaEmision) return false;
+      return true;
+    });
+  };
+
+  const isStep3Valid = () => {
+    return (data.personal || []).length > 0;
+  };
+
+  const isStep4Valid = () => {
+    const docsBase = ["sctr", "samo", "iperc"];
+    const docsParaValidar = isTar ? [...docsBase, "pets"] : docsBase;
+
+    return docsParaValidar.every(id => {
+      const doc = data.cargaMasiva[id];
+      if (!doc?.archivo) return false;
+      if (id !== "sctr" && !doc?.fechaEmision) return false;
+      if (!doc.personalIds || doc.personalIds.length === 0) return false;
+      return true;
+    });
+  };
 
   const isCurrentStepValid = () => {
-    if (currentStep === 1) return isStep1Valid;
-    if (currentStep === 2 && isTar) return isStep2Valid;
-    return true; // para el paso 3 o si no es TAR
+    if (currentStep === 1) return isStep1Valid();
+    if (currentStep === 2) return isStep2Valid();
+    if (currentStep === 3) return isStep3Valid();
+    return isStep4Valid();
   };
 
   const handleNext = () => {
@@ -66,12 +134,37 @@ export function NuevaSolicitudForm() {
   };
 
   const handleSubmit = () => {
-    // MOCK — lógica de envío final pendiente de integración real
+    // MOCK — persistencia en localStorage, pendiente de integración real con API
+    const requisitosArchivos: Record<string, string> = {};
+    const requisitosFechas: Record<string, string> = {};
+    for (const [id, req] of Object.entries(data.requisitos)) {
+      if (req.archivo) requisitosArchivos[id] = req.archivo.name;
+      if (req.fechaEmision) requisitosFechas[id] = req.fechaEmision;
+    }
+
+    const payload = {
+      empresa: data.empresa,
+      descripcion: data.descripcion,
+      sede: data.sede,
+      nombreSolicitante: data.nombreSolicitante,
+      celular: data.celular,
+      correo: data.correo,
+      clasificacion: data.clasificacion,
+      requisitosArchivos,
+      requisitosFechas,
+      personal: data.personal,
+      cargaMasiva: data.cargaMasiva,
+    };
+
+    saveSolicitud({ ...payload, creadoPor: localStorage.getItem("username") || "solicitante" });
+
     Swal.fire({
       icon: "success",
       title: "Solicitud registrada",
       text: "La solicitud ha sido registrada con éxito.",
       confirmButtonColor: "var(--color-primary)",
+    }).then(() => {
+      router.push("/mis-solicitudes");
     });
   };
 
@@ -85,6 +178,10 @@ export function NuevaSolicitudForm() {
       cancelButtonText: "Volver",
       confirmButtonColor: "var(--color-danger)",
       cancelButtonColor: "var(--color-primary)",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        router.push("/inicio");
+      }
     });
   };
 
@@ -117,17 +214,9 @@ export function NuevaSolicitudForm() {
           {/* Renderizado dinámico de pasos */}
           <div className="min-h-[300px]">
             {currentStep === 1 && <StepDatosSolicitud data={data} setData={setData} />}
-            {currentStep === 2 && isTar && <StepRequisitosTAR data={data} setData={setData} />}
-            {currentStep === 2 && !isTar && (
-              <div className="p-8 text-center text-[var(--color-text-secondary)]">
-                Resumen de la solicitud (No TAR) - En construcción
-              </div>
-            )}
-            {currentStep === 3 && isTar && (
-              <div className="p-8 text-center text-[var(--color-text-secondary)]">
-                Resumen de la solicitud (TAR) - En construcción
-              </div>
-            )}
+            {currentStep === 2 && <StepRequisitosGenerales data={data} setData={setData} />}
+            {currentStep === 3 && <StepPersonal data={data} setData={setData} />}
+            {currentStep === 4 && <StepCargaMasiva data={data} setData={setData} />}
           </div>
         </div>
 

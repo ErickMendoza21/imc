@@ -1,10 +1,11 @@
 import { Building2, FileText, MapPin, User, Phone, Mail, ShieldAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { FormField } from "@/components/molecules/FormField";
 import { Input } from "@/components/atoms/Input";
 import { Select } from "@/components/atoms/Select";
 import { Textarea } from "@/components/atoms/Textarea";
 import { RiskCard } from "@/components/molecules/RiskCard";
-import { SEDES_MOCK } from "@/lib/constants/solicitud";
+import { SEDES_MOCK, SERVICES_TAR_MOCK } from "@/lib/constants/solicitud";
 
 export interface StepDatosSolicitudData {
   empresa: string;
@@ -14,6 +15,8 @@ export interface StepDatosSolicitudData {
   celular: string;
   correo: string;
   clasificacion: "TAR" | "NO_TAR" | "";
+  serviciosSeleccionados?: string[];
+  casosEspecialesSeleccionados?: string[];
 }
 
 interface StepDatosSolicitudProps {
@@ -22,148 +25,146 @@ interface StepDatosSolicitudProps {
 }
 
 export function StepDatosSolicitud({ data, setData }: StepDatosSolicitudProps) {
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRole(localStorage.getItem("userRole"));
+  }, []);
+
+  const isSolicitante = role === "solicitante";
+  const isAdmin = role === "admin";
+
   return (
-    <>
-      {/* ── Cuerpo: dos columnas ── */}
-      <div className="grid grid-cols-2 divide-x divide-[var(--color-border)]">
-        {/* ── Columna izquierda: Datos generales ── */}
-        <section className="px-8 py-6" aria-labelledby="datos-generales-heading">
-          <div className="flex items-center gap-2 mb-5">
-            <FileText size={18} className="text-[var(--color-secondary)]" />
-            <h2 id="datos-generales-heading" className="text-base font-bold text-[var(--color-title)]">
-              Datos generales
+      <div className="flex flex-col gap-8 max-w-4xl mx-auto py-4">
+        {/* ── Sección clasificación ── */}
+        <section aria-labelledby="clasificacion-heading">
+          <div className="flex items-center gap-2 mb-4">
+            <ShieldAlert size={18} className="text-[var(--color-secondary)]" />
+            <h2 id="clasificacion-heading" className="text-base font-bold text-[var(--color-title)]">
+              Clasificación del trabajo
+              <span className="text-[var(--color-danger)] ml-0.5" aria-hidden="true">*</span>
             </h2>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <FormField label="Nombre de la empresa" htmlFor="campo-empresa" required>
-              <Input
-                id="campo-empresa"
-                type="text"
-                placeholder="Constructora Andina S.A."
-                value={data.empresa}
-                onChange={(e) => setData((d: any) => ({ ...d, empresa: e.target.value }))}
-                prefix={<Building2 size={15} />}
-                aria-required="true"
-              />
-            </FormField>
-
-            <FormField label="Descripción del proyecto" htmlFor="campo-descripcion" required>
-              <Textarea
-                id="campo-descripcion"
-                placeholder="Construcción de infraestructura..."
-                value={data.descripcion}
-                onChange={(e) => setData((d: any) => ({ ...d, descripcion: e.target.value }))}
-                prefix={<FileText size={15} />}
-                maxLength={500}
-                showCount
-                rows={3}
-                aria-required="true"
-              />
-            </FormField>
-
-            <FormField label="Sede a la que va a asistir" htmlFor="campo-sede" required>
-              <Select
-                id="campo-sede"
-                options={SEDES_MOCK}
-                placeholder="Selecciona una sede"
-                value={data.sede}
-                onChange={(e) => setData((d: any) => ({ ...d, sede: e.target.value }))}
-                prefix={<MapPin size={15} />}
-                aria-required="true"
-              />
-            </FormField>
+          <div className="grid grid-cols-2 gap-4">
+            <RiskCard
+              value="TAR"
+              label="Alto riesgo (TAR)"
+              description="Actividades con riesgos significativos para las personas, o instalaciones."
+              icon={<AlertTriangle size={22} />}
+              variant="danger"
+              selected={data.clasificacion === "TAR"}
+              onChange={(v) => setData((d: any) => ({ ...d, clasificacion: v as "TAR" }))}
+            />
+            <RiskCard
+              value="NO_TAR"
+              label="No alto riesgo (No TAR)"
+              description="Actividades con riesgos controlados y procedimientos estándar."
+              icon={<CheckCircle2 size={22} />}
+              variant="success"
+              selected={data.clasificacion === "NO_TAR"}
+              onChange={(v) => setData((d: any) => ({ ...d, clasificacion: v as "NO_TAR" }))}
+            />
           </div>
         </section>
 
-        {/* ── Columna derecha: Datos del solicitante ── */}
-        <section className="px-8 py-6" aria-labelledby="datos-solicitante-heading">
-          <div className="flex items-center gap-2 mb-5">
-            <User size={18} className="text-[var(--color-secondary)]" />
-            <h2 id="datos-solicitante-heading" className="text-base font-bold text-[var(--color-title)]">
-              Datos del solicitante
-            </h2>
-          </div>
+        {/* ── Lista de Servicios ── */}
+        {data.clasificacion && (
+          <section className="bg-white border border-[var(--color-border)] rounded-xl p-6 shadow-sm [animation:card-in_0.3s_ease-out_both]">
+            <div className="flex flex-col mb-4">
+              <h3 className="text-[0.95rem] font-semibold text-[var(--color-title)]">
+                Seleccione los servicios a solicitar
+              </h3>
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                Puede seleccionar uno o más servicios. Algunos requerirán consideraciones especiales.
+              </p>
+            </div>
 
-          <div className="flex flex-col gap-4">
-            <FormField label="Nombre completo" htmlFor="campo-nombre-solicitante" required>
-              <Input
-                id="campo-nombre-solicitante"
-                type="text"
-                placeholder="Juan Pérez García"
-                value={data.nombreSolicitante}
-                onChange={(e) => setData((d: any) => ({ ...d, nombreSolicitante: e.target.value }))}
-                prefix={<User size={15} />}
-                aria-required="true"
-              />
-            </FormField>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {SERVICES_TAR_MOCK.map((servicio) => {
+                const isSelected = data.serviciosSeleccionados?.includes(servicio.id);
+                const isCasoSelected = data.casosEspecialesSeleccionados?.includes(servicio.id);
 
-            <FormField label="Celular" htmlFor="campo-celular" required>
-              <Input
-                id="campo-celular"
-                type="text"
-                inputMode="numeric"
-                maxLength={9}
-                placeholder="987654321"
-                value={data.celular}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, "").slice(0, 9);
-                  setData((d: any) => ({ ...d, celular: value }));
-                }}
-                prefix={<Phone size={15} />}
-                aria-required="true"
-              />
-            </FormField>
+                return (
+                  <div
+                    key={servicio.id}
+                    className={`
+                      relative flex flex-col p-4 rounded-lg border transition-all duration-200
+                      ${isSelected
+                        ? "border-[var(--color-secondary)] bg-[var(--color-primary-light)]/30 ring-1 ring-[var(--color-secondary)]"
+                        : "border-[var(--color-border)] bg-white hover:border-[var(--color-secondary)]/50 hover:bg-[var(--color-bg-soft)]"
+                      }
+                    `}
+                  >
+                    <label className="flex items-start cursor-pointer w-full">
+                      <div className="flex items-center h-5">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 text-[var(--color-secondary)] border-gray-300 rounded focus:ring-[var(--color-secondary)] cursor-pointer"
+                          checked={isSelected || false}
+                          onChange={(e) => {
+                            const currentSelected = data.serviciosSeleccionados || [];
+                            const currentCasos = data.casosEspecialesSeleccionados || [];
+                            let newSelected;
+                            let newCasos = [...currentCasos];
 
-            <FormField label="Correo" htmlFor="campo-correo" required>
-              <Input
-                id="campo-correo"
-                type="email"
-                placeholder="juan.perez@empresa.com"
-                value={data.correo}
-                onChange={(e) => setData((d: any) => ({ ...d, correo: e.target.value }))}
-                prefix={<Mail size={15} />}
-                aria-required="true"
-              />
-            </FormField>
-          </div>
-        </section>
+                            if (e.target.checked) {
+                              newSelected = [...currentSelected, servicio.id];
+                            } else {
+                              newSelected = currentSelected.filter((id: string) => id !== servicio.id);
+                              // Si desmarca el servicio, también desmarcamos su caso especial si lo tenía
+                              newCasos = newCasos.filter((id: string) => id !== servicio.id);
+                            }
+
+                            setData((d: any) => ({
+                              ...d,
+                              serviciosSeleccionados: newSelected,
+                              casosEspecialesSeleccionados: newCasos
+                            }));
+                          }}
+                        />
+                      </div>
+                      <div className="ml-3 flex flex-col justify-center h-5">
+                        <span className={`text-sm font-medium ${isSelected ? "text-[var(--color-title)]" : "text-[var(--color-title)]/80"}`}>
+                          {servicio.label}
+                        </span>
+                      </div>
+                    </label>
+
+                    {/* Checkbox anidado para el caso especial (solo visible si el servicio está seleccionado y tiene caso especial) */}
+                    {isSelected && servicio.casoEspecial && (
+                      <label className="flex items-start cursor-pointer mt-3 ml-7 p-2 bg-white/60 rounded border border-[var(--color-border)]">
+                        <div className="flex items-center h-5">
+                          <input
+                            type="checkbox"
+                            className="w-3.5 h-3.5 text-[var(--color-warning)] border-gray-300 rounded focus:ring-[var(--color-warning)] cursor-pointer"
+                            checked={isCasoSelected || false}
+                            onChange={(e) => {
+                              const currentCasos = data.casosEspecialesSeleccionados || [];
+                              let newCasos;
+                              if (e.target.checked) {
+                                newCasos = [...currentCasos, servicio.id];
+                              } else {
+                                newCasos = currentCasos.filter((id: string) => id !== servicio.id);
+                              }
+                              setData((d: any) => ({ ...d, casosEspecialesSeleccionados: newCasos }));
+                            }}
+                          />
+                        </div>
+                        <div className="ml-2 flex flex-col">
+                          <span className="text-xs text-[var(--color-text-secondary)] flex items-center gap-1.5 font-medium">
+                            <AlertTriangle size={12} className="text-[var(--color-warning)]" />
+                            {servicio.casoEspecial}
+                          </span>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
-
-      {/* Divisor */}
-      <hr className="border-[var(--color-border)] mx-8" />
-
-      {/* ── Sección clasificación: ancho completo ── */}
-      <section className="px-8 py-6" aria-labelledby="clasificacion-heading">
-        <div className="flex items-center gap-2 mb-4">
-          <ShieldAlert size={18} className="text-[var(--color-secondary)]" />
-          <h2 id="clasificacion-heading" className="text-base font-bold text-[var(--color-title)]">
-            Clasificación del trabajo
-            <span className="text-[var(--color-danger)] ml-0.5" aria-hidden="true">*</span>
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <RiskCard
-            value="TAR"
-            label="Alto riesgo (TAR)"
-            description="Actividades con riesgos significativos para las personas, o instalaciones."
-            icon={<AlertTriangle size={22} />}
-            variant="danger"
-            selected={data.clasificacion === "TAR"}
-            onChange={(v) => setData((d: any) => ({ ...d, clasificacion: v as "TAR" }))}
-          />
-          <RiskCard
-            value="NO_TAR"
-            label="No alto riesgo (No TAR)"
-            description="Actividades con riesgos controlados y procedimientos estándar."
-            icon={<CheckCircle2 size={22} />}
-            variant="success"
-            selected={data.clasificacion === "NO_TAR"}
-            onChange={(v) => setData((d: any) => ({ ...d, clasificacion: v as "NO_TAR" }))}
-          />
-        </div>
-      </section>
-    </>
   );
 }
