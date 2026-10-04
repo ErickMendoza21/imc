@@ -1,45 +1,45 @@
 /**
  * Mapa de vigencias máximas por documento (en meses).
- * null  = Sin vigencia (no vence)
- * "poliza" = Según póliza (el contrato define el plazo)
+ * null      = Sin vigencia (no vence)
+ * "poliza"  = Según póliza (el contrato define el plazo)
  * undefined = Pendiente de confirmar con el cliente
  */
-export type Vigencia = number | null | "poliza";
+export type Vigencia = number | null | "poliza" | undefined;
 
 export const VIGENCIA_DOCS: Record<string, Vigencia> = {
   // ── Requisitos Generales — No TAR ──────────────────────────────
-  iperc:           12,  // Matriz IPERC — 1 año
-  difusion_iperc:  12,  // Registro de difusión Matriz IPERC — 1 año
-  directorio:      12,  // Directorio telefónico — 1 año
+  iperc: 12,  // Matriz IPERC — 1 año
+  difusion_iperc: 12,  // Registro de difusión Matriz IPERC — 1 año
+  directorio: 12,  // Directorio telefónico — 1 año
   matriz_aspectos: 12,  // Matriz de aspectos e impactos — 1 año
 
   // ── Requisitos Generales — TAR extras ─────────────────────────
-  pets:            12,  // PETS — 1 año
-  difusion_pets:   12,  // Registro de difusión de PETS — 1 año
+  pets: 12,  // PETS — 1 año
+  difusion_pets: 12,  // Registro de difusión de PETS — 1 año
   plan_emergencia: 12,  // Plan de Emergencia — 1 año
-  lista_epp:       null, // Lista de EPP — Sin vigencia
+  lista_epp: null, // Lista de EPP — Sin vigencia
 
   // ── Casos especiales Altura (pendiente confirmar con cliente) ──
-  ensayo_andamio:               undefined,
+  ensayo_andamio: undefined,
   cert_operatividad_plataforma: undefined,
-  seguro_resp_civil:            undefined,
+  seguro_resp_civil: undefined,
 
   // ── Carga Masiva ───────────────────────────────────────────────
-  sctr:  "poliza", // SCTR — Según póliza
-  samo:  12,       // SAMO — 1 año (pendiente confirmar)
+  sctr: "poliza", // SCTR — Según póliza
+  samo: 12,       // SAMO — 1 año (pendiente confirmar)
 
   // ── Personal — Base (todos los trabajadores) ──────────────────
   induccion_sig: 12,  // Inducción SIG — 1 año
-  camo:          24,  // CAMO — 2 años (No TAR) / ver nota para TAR
-  risst:         12,  // Cargo de entrega de RISST — 1 año
+  camo: 24,  // CAMO — 2 años (No TAR) / ver nota para TAR
+  risst: 12,  // Cargo de entrega de RISST — 1 año
 
   // ── Personal — TAR extras ──────────────────────────────────────
   prevencionista: undefined, // Prevencionista / SSOMA — pendiente
-  registro_epp:   null,      // Registro de entrega de EPP — Sin vigencia
+  registro_epp: null,      // Registro de entrega de EPP — Sin vigencia
 
   // ── Personal — Trabajos en Altura ─────────────────────────────
-  test_medico_altura:        12, // CAMO TEST DE ALTURA / CONFINADO — 1 año
-  cert_capacitacion_altura:  12, // Certificado de capacitación en TAR — 1 año
+  test_medico_altura: 12, // CAMO TEST DE ALTURA / CONFINADO — 1 año
+  cert_capacitacion_altura: 12, // Certificado de capacitación en TAR — 1 año
 
   // ── Personal — Plataforma elevadora ───────────────────────────
   cert_operador_plataforma: 12, // Pendiente confirmar — usando 1 año por defecto
