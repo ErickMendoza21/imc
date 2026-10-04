@@ -11,17 +11,27 @@ import { Stepper } from "@/components/molecules/Stepper";
 import { getStepsNuevaSolicitud } from "@/lib/constants/solicitud";
 import { saveSolicitud } from "@/lib/services/solicitudes";
 import { getUsuarioByUsername } from "@/lib/services/usuarios";
+import { getSedesSelectOptions } from "@/lib/services/sedes";
 import { StepDatosSolicitud, StepDatosSolicitudData } from "./StepDatosSolicitud";
 import { StepRequisitosGenerales, StepRequisitosGeneralesData } from "./StepRequisitosGenerales";
 import { StepPersonal, StepPersonalData } from "./StepPersonal";
 import { StepCargaMasiva, StepCargaMasivaData } from "./StepCargaMasiva";
+import { StepVehiculos, StepVehiculosData } from "./StepVehiculos";
+import { StepPrevencionistas, StepPrevencionistasData } from "./StepPrevencionistas";
 
-export interface FormData extends StepDatosSolicitudData, StepRequisitosGeneralesData, StepPersonalData, StepCargaMasivaData {}
+export interface FormData
+  extends StepDatosSolicitudData,
+    StepRequisitosGeneralesData,
+    StepPersonalData,
+    StepCargaMasivaData,
+    StepVehiculosData,
+    StepPrevencionistasData {}
 
 export function NuevaSolicitudForm() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [role, setRole] = useState<string | null>(null);
+  const [sedesOptions, setSedesOptions] = useState<{ value: string; label: string }[]>([]);
 
   const [data, setData] = useState<FormData>({
     empresa: "",
@@ -31,18 +41,29 @@ export function NuevaSolicitudForm() {
     celular: "",
     correo: "",
     clasificacion: "",
+    serviciosSeleccionados: [],
+    casosEspecialesSeleccionados: [],
     requisitos: {},
+    fichasEpp: [{ id: "epp-1", nombre: "", archivo: null }],
+    especificacionesQuimicos: [{ id: "quim-1", nombre: "", archivo: null }],
+    certificadosCalibracion: [{ id: "cal-1", nombre: "", archivo: null, fecha: "" }],
     personal: [],
     cargaMasiva: {},
+    vehiculos: [],
+    prevencionistas: [],
   });
 
   useEffect(() => {
     const currentRole = localStorage.getItem("userRole");
     setRole(currentRole);
 
-    // Si es solicitante, pre-rellenar los datos desde su perfil de usuario
+    // Cargar opciones de sedes (sedes activas) al montar
+    setSedesOptions(getSedesSelectOptions());
+
+    // Si es solicitante/contratista, pre-rellenar los datos desde su perfil de usuario
     if (currentRole === "solicitante") {
       const username = localStorage.getItem("username");
+      const selectedSede = localStorage.getItem("selectedSede") || "";
       if (username) {
         const usuario = getUsuarioByUsername(username);
         if (usuario) {
@@ -50,7 +71,7 @@ export function NuevaSolicitudForm() {
             ...prev,
             empresa: usuario.empresa,
             descripcion: usuario.descripcion,
-            sede: usuario.sede,
+            sede: selectedSede || prev.sede,
             nombreSolicitante: usuario.nombreCompleto,
             celular: usuario.celular,
             correo: usuario.correo,
@@ -58,7 +79,30 @@ export function NuevaSolicitudForm() {
         }
       }
     }
+
+    // Refrescar sedes si el admin las modifica en otra pestaña
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "imc_sedes") {
+        setSedesOptions(getSedesSelectOptions());
+      }
+    };
+
+    // Refrescar sedes cuando el usuario vuelve a este tab
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        setSedesOptions(getSedesSelectOptions());
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
+
 
   const isSolicitante = role === "solicitante";
 
@@ -83,16 +127,56 @@ export function NuevaSolicitudForm() {
   };
 
   const isStep2Valid = () => {
-    const requiredIds = isTar
-      ? ["personal", "iperc", "directorio", "matriz_aspectos", "pets", "plan_emergencia", "lista_epp", "fichas_epp"]
-      : ["personal", "iperc", "directorio", "matriz_aspectos"];
-    
-    return requiredIds.every((id) => {
+    const baseReqs = ["iperc", "difusion_iperc", "directorio", "matriz_aspectos"];
+    const tarExtras = ["pets", "difusion_pets", "plan_emergencia", "lista_epp"];
+    let requiredIds = isTar ? [...baseReqs, ...tarExtras] : [...baseReqs];
+    const sinFechaRequerida = ["lista_epp"];
+
+    if (isTar) {
+      if ((data.casosEspecialesSeleccionados || []).includes("altura_andamio")) {
+        requiredIds.push("ensayo_andamio");
+      }
+      if ((data.casosEspecialesSeleccionados || []).includes("altura_plataforma")) {
+        requiredIds.push("cert_operatividad_plataforma");
+        requiredIds.push("seguro_resp_civil");
+      }
+    }
+
+    // 1. Validar documentos base
+    const baseOk = requiredIds.every((id) => {
       const req = data.requisitos[id];
       if (!req?.archivo) return false;
-      if (id !== "personal" && id !== "lista_epp" && id !== "fichas_epp" && !req?.fechaEmision) return false;
+      if (!sinFechaRequerida.includes(id) && !req?.fechaEmision) return false;
       return true;
     });
+
+    if (!baseOk) return false;
+
+    // 2. Fichas de EPP (uno o más): si es TAR, al menos 1 archivo cargado
+    if (isTar) {
+      const hasValidEpp = (data.fichasEpp || []).some((item) => item.archivo !== null);
+      if (!hasValidEpp) return false;
+    }
+
+    // 3. Especificaciones de químicos (uno o más): si se seleccionó MATPEL
+    const isMatpel = (data.serviciosSeleccionados || []).includes("matpel");
+    if (isMatpel) {
+      const hasValidQuim = (data.especificacionesQuimicos || []).some((item) => item.archivo !== null);
+      if (!hasValidQuim) return false;
+    }
+
+    // 4. Certificados de calibración (uno o más): si se seleccionó medidor de gas o medición
+    const isMedicion = (data.casosEspecialesSeleccionados || []).some((c) =>
+      ["espacio_medidor_gas", "electricos_medicion"].includes(c)
+    );
+    if (isMedicion) {
+      const hasValidCal = (data.certificadosCalibracion || []).some(
+        (item) => item.archivo !== null && Boolean(item.fecha)
+      );
+      if (!hasValidCal) return false;
+    }
+
+    return true;
   };
 
   const isStep3Valid = () => {
@@ -102,21 +186,68 @@ export function NuevaSolicitudForm() {
   const isStep4Valid = () => {
     const docsBase = ["sctr", "samo", "iperc"];
     const docsParaValidar = isTar ? [...docsBase, "pets"] : docsBase;
+    const totalPersonal = data.personal || [];
+    if (totalPersonal.length === 0) return false;
 
-    return docsParaValidar.every(id => {
-      const doc = data.cargaMasiva[id];
-      if (!doc?.archivo) return false;
-      if (id !== "sctr" && !doc?.fechaEmision) return false;
-      if (!doc.personalIds || doc.personalIds.length === 0) return false;
-      return true;
+    return docsParaValidar.every((docId) => {
+      const filesArr = data.cargaMasiva[docId];
+      if (!Array.isArray(filesArr) || filesArr.length === 0) return false;
+
+      const coveredIds = new Set<string>();
+
+      for (const item of filesArr) {
+        if (!item.archivo) return false;
+        if (docId !== "sctr" && !item.fechaEmision) return false;
+        if (!item.personalIds || item.personalIds.length === 0) return false;
+        item.personalIds.forEach((id: string) => coveredIds.add(id));
+      }
+
+      // Debe cubrir a absolutamente todos los trabajadores registrados
+      return totalPersonal.every((p: any) => coveredIds.has(p.id));
     });
+  };
+
+  const isStep5Valid = () => {
+    const vehiculos = data.vehiculos || [];
+    if (vehiculos.length === 0) return true; // Opcional
+    return vehiculos.every((v: any) =>
+      v.soatArchivoNombre &&
+      v.soatFechaEmision &&
+      v.citvArchivoNombre &&
+      v.citvFechaEmision &&
+      v.tarjetaPropiedadArchivoNombre &&
+      v.conductores?.length > 0 &&
+      v.conductores.every((c: any) => c.licenciaArchivoNombre && c.licenciaFechaVencimiento)
+    );
+  };
+
+  const isStep6Valid = () => {
+    if (!isTar) return true;
+    const prevs = data.prevencionistas || [];
+    if (prevs.length === 0) return false;
+    // Todos los TAR deben estar cubiertos
+    const tarCubiertos = new Set(prevs.flatMap((p: any) => p.tarAsignados));
+    const servicios = data.serviciosSeleccionados || [];
+    const todosCubiertos = servicios.every((s: string) => tarCubiertos.has(s));
+    if (!todosCubiertos) return false;
+    // Cada prevencionista debe tener todos sus documentos
+    return prevs.every((p: any) =>
+      p.personaId &&
+      p.tarAsignados.length > 0 &&
+      p.formacionAcademicaArchivoNombre &&
+      p.certificadoTrabajoArchivoNombre &&
+      p.certsCapacitacion.length === p.tarAsignados.length &&
+      p.certsCapacitacion.every((c: any) => c.archivoNombre && c.fechaEmision)
+    );
   };
 
   const isCurrentStepValid = () => {
     if (currentStep === 1) return isStep1Valid();
     if (currentStep === 2) return isStep2Valid();
     if (currentStep === 3) return isStep3Valid();
-    return isStep4Valid();
+    if (currentStep === 4) return isStep4Valid();
+    if (currentStep === 5) return isStep5Valid();
+    return isStep6Valid();
   };
 
   const handleNext = () => {
@@ -142,6 +273,31 @@ export function NuevaSolicitudForm() {
       if (req.fechaEmision) requisitosFechas[id] = req.fechaEmision;
     }
 
+    const fichasEppSaved = (data.fichasEpp || [])
+      .filter((e) => e.archivo)
+      .map((e) => ({
+        id: e.id,
+        nombre: e.nombre || "Ficha EPP",
+        archivoNombre: e.archivo?.name,
+      }));
+
+    const especificacionesQuimicosSaved = (data.especificacionesQuimicos || [])
+      .filter((q) => q.archivo)
+      .map((q) => ({
+        id: q.id,
+        nombre: q.nombre || "Químico",
+        archivoNombre: q.archivo?.name,
+      }));
+
+    const certificadosCalibracionSaved = (data.certificadosCalibracion || [])
+      .filter((c) => c.archivo)
+      .map((c) => ({
+        id: c.id,
+        nombre: c.nombre || "Equipo de medición",
+        archivoNombre: c.archivo?.name,
+        fecha: c.fecha,
+      }));
+
     const payload = {
       empresa: data.empresa,
       descripcion: data.descripcion,
@@ -150,18 +306,28 @@ export function NuevaSolicitudForm() {
       celular: data.celular,
       correo: data.correo,
       clasificacion: data.clasificacion,
+      serviciosSeleccionados: data.serviciosSeleccionados,
+      casosEspecialesSeleccionados: data.casosEspecialesSeleccionados,
       requisitosArchivos,
       requisitosFechas,
+      fichasEpp: fichasEppSaved,
+      especificacionesQuimicos: especificacionesQuimicosSaved,
+      certificadosCalibracion: certificadosCalibracionSaved,
       personal: data.personal,
       cargaMasiva: data.cargaMasiva,
+      vehiculos: data.vehiculos,
+      prevencionistas: data.prevencionistas,
     };
 
-    saveSolicitud({ ...payload, creadoPor: localStorage.getItem("username") || "solicitante" });
+    const nuevaSolicitud = saveSolicitud({
+      ...payload,
+      creadoPor: localStorage.getItem("username") || "contratista",
+    });
 
     Swal.fire({
       icon: "success",
       title: "Solicitud registrada",
-      text: "La solicitud ha sido registrada con éxito.",
+      html: `La solicitud ha sido registrada con éxito.<br><br>Código asignado: <strong style="font-family:monospace;color:var(--color-primary);background:var(--color-primary-light);padding:3px 8px;border-radius:4px;font-size:1.05rem">${nuevaSolicitud.codigo}</strong>`,
       confirmButtonColor: "var(--color-primary)",
     }).then(() => {
       router.push("/mis-solicitudes");
@@ -213,10 +379,12 @@ export function NuevaSolicitudForm() {
 
           {/* Renderizado dinámico de pasos */}
           <div className="min-h-[300px]">
-            {currentStep === 1 && <StepDatosSolicitud data={data} setData={setData} />}
+            {currentStep === 1 && <StepDatosSolicitud data={data} setData={setData} sedesOptions={sedesOptions} />}
             {currentStep === 2 && <StepRequisitosGenerales data={data} setData={setData} />}
             {currentStep === 3 && <StepPersonal data={data} setData={setData} />}
             {currentStep === 4 && <StepCargaMasiva data={data} setData={setData} />}
+            {currentStep === 5 && <StepVehiculos data={data} setData={setData} />}
+            {currentStep === 6 && <StepPrevencionistas data={data} setData={setData} />}
           </div>
         </div>
 

@@ -3,14 +3,16 @@
  * MOCK — pendiente de integración real con API/backend.
  */
 
+export type RolUsuario = "solicitante" | "revisor" | "sapo" | "inspector";
+
 export interface Usuario {
   id: string;
   username: string;
   password: string;
-  rol: "solicitante" | "inspector";
+  rol: RolUsuario;
   empresa: string;
   descripcion: string;
-  sede: string;
+  sede?: string;
   nombreCompleto: string;
   celular: string;
   correo: string;

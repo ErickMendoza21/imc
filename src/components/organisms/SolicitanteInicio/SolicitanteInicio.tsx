@@ -12,19 +12,22 @@ import {
   Plus,
   ClipboardList,
 } from "lucide-react";
+import Swal from "sweetalert2";
 
 import { Button } from "@/components/atoms/Button";
 import { Input } from "@/components/atoms/Input";
 import { Select } from "@/components/atoms/Select";
 import { Textarea } from "@/components/atoms/Textarea";
 import { FormField } from "@/components/molecules/FormField";
-import { SEDES_MOCK } from "@/lib/constants/solicitud";
+import { getSedesSelectOptions } from "@/lib/services/sedes";
 import { getUsuarioByUsername, type Usuario } from "@/lib/services/usuarios";
 
 export function SolicitanteInicio() {
   const router = useRouter();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sede, setSede] = useState("");
+  const [sedesOptions, setSedesOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
     const username = localStorage.getItem("username");
@@ -32,8 +35,51 @@ export function SolicitanteInicio() {
       const found = getUsuarioByUsername(username);
       setUsuario(found);
     }
+    const options = getSedesSelectOptions();
+    setSedesOptions(options);
+
+    const savedSede = localStorage.getItem("selectedSede");
+    if (savedSede) {
+      setSede(savedSede);
+    }
     setLoading(false);
+
+    // Refrescar sedes si el admin las modifica en otra pestaña
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "imc_sedes") {
+        setSedesOptions(getSedesSelectOptions());
+      }
+    };
+
+    // Refrescar sedes cuando el usuario vuelve a este tab
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        setSedesOptions(getSedesSelectOptions());
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
+
+  const handleCrearSolicitud = () => {
+    if (!sede) {
+      Swal.fire({
+        icon: "warning",
+        title: "Selecciona una sede",
+        text: "Por favor selecciona la sede a la que vas a asistir antes de crear la solicitud.",
+        confirmButtonColor: "var(--color-primary)",
+      });
+      return;
+    }
+    localStorage.setItem("selectedSede", sede);
+    router.push("/nueva-solicitud");
+  };
 
   if (loading) {
     return (
@@ -109,26 +155,31 @@ export function SolicitanteInicio() {
                 />
               </FormField>
 
-              <FormField label="Sede a la que va a asistir" htmlFor="campo-sede">
+              <FormField label="Sede a la que va a asistir" htmlFor="campo-sede" required>
                 <Select
                   id="campo-sede"
-                  options={SEDES_MOCK}
-                  value={usuario.sede}
-                  disabled
+                  options={sedesOptions}
+                  placeholder="Selecciona una sede"
+                  value={sede}
+                  onChange={(e) => {
+                    setSede(e.target.value);
+                    localStorage.setItem("selectedSede", e.target.value);
+                  }}
+                  prefix={<MapPin size={15} />}
                 />
               </FormField>
             </div>
           </section>
 
-          {/* ── Columna derecha: Datos del solicitante ── */}
-          <section className="px-8 py-6" aria-labelledby="datos-solicitante-heading">
+          {/* ── Columna derecha: Datos del contratista ── */}
+          <section className="px-8 py-6" aria-labelledby="datos-contratista-heading">
             <div className="flex items-center gap-2 mb-5">
               <User size={18} className="text-[var(--color-secondary)]" />
               <h2
-                id="datos-solicitante-heading"
+                id="datos-contratista-heading"
                 className="text-base font-bold text-[var(--color-title)]"
               >
-                Datos del solicitante
+                Datos del contratista
               </h2>
             </div>
 
@@ -175,7 +226,7 @@ export function SolicitanteInicio() {
         <Button
           type="button"
           variant="primary"
-          onClick={() => router.push("/nueva-solicitud")}
+          onClick={handleCrearSolicitud}
           className="w-auto"
         >
           <Plus size={18} />

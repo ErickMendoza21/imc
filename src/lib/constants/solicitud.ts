@@ -5,20 +5,17 @@ export interface Step {
 
 /** Obtener los pasos dinámicamente según la clasificación */
 export const getStepsNuevaSolicitud = (isTar: boolean): Step[] => {
-  if (isTar) {
-    return [
-      { id: 1, label: "Datos de la solicitud" },
-      { id: 2, label: "Requisitos Generales" },
-      { id: 3, label: "Personal" },
-      { id: 4, label: "Carga Masiva" },
-    ];
-  }
-  return [
+  const steps: Step[] = [
     { id: 1, label: "Datos de la solicitud" },
     { id: 2, label: "Requisitos Generales" },
     { id: 3, label: "Personal" },
     { id: 4, label: "Carga Masiva" },
+    { id: 5, label: "Vehículos" },
   ];
+  if (isTar) {
+    steps.push({ id: 6, label: "Prevencionista" });
+  }
+  return steps;
 };
 
 /** MOCK — pendiente de integración real */
@@ -29,12 +26,56 @@ export const SEDES_MOCK = [
   { value: "sede-este", label: "Sede Este" },
 ];
 
-export const SERVICES_TAR_MOCK = [
-  { id: "s1", label: "Servicio 1", casoEspecial: "En caso de usar grúas" },
-  { id: "s2", label: "Servicio 2", casoEspecial: "En caso de usar elevadores de personas" },
-  { id: "s3", label: "Servicio 3", casoEspecial: "En caso de usar maquinaria pesada" },
-  { id: "s4", label: "Servicio 4", casoEspecial: "En caso de andamio" },
-  { id: "s5", label: "Servicio 5", casoEspecial: "En caso de equipos de sustancias químicas" },
-  { id: "s6", label: "Servicio 6", casoEspecial: "En caso de equipos de medición" },
-  { id: "s7", label: "Servicio 7", casoEspecial: null },
+export interface TrabajoAltoRiesgo {
+  id: string;
+  label: string;
+  casosEspeciales?: { id: string; label: string }[];
+}
+
+export const TRABAJOS_ALTO_RIESGO_MOCK: TrabajoAltoRiesgo[] = [
+  {
+    id: "altura",
+    label: "TRABAJOS EN ALTURA",
+    casosEspeciales: [
+      { id: "altura_andamio", label: "En caso de usar andamio" },
+      { id: "altura_plataforma", label: "En caso de usar Plataforma elevadora" },
+    ],
+  },
+  {
+    id: "espacio_confinado",
+    label: "ESPACIO CONFINADO",
+    casosEspeciales: [
+      { id: "espacio_medidor_gas", label: "En caso de usar medidor de gas" },
+    ],
+  },
+  {
+    id: "matpel",
+    label: "MATERIALES PELIGROSOS MATPEL",
+  },
+  {
+    id: "excavaciones",
+    label: "EXCAVACIONES",
+  },
+  {
+    id: "caliente",
+    label: "CALIENTE",
+  },
+  {
+    id: "izaje_cargas",
+    label: "IZAJE DE CARGAS",
+  },
+  {
+    id: "electricos",
+    label: "TRABAJOS ELÉCTRICOS",
+    casosEspeciales: [
+      { id: "electricos_medicion", label: "En caso de usar equipos de medición" },
+    ],
+  },
+  {
+    id: "maquinaria_pesada",
+    label: "MAQUINARIA PESADA",
+  },
 ];
+
+export const SERVICES_TAR_MOCK = TRABAJOS_ALTO_RIESGO_MOCK;
+
