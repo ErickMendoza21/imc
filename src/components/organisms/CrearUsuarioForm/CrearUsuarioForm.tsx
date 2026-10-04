@@ -11,7 +11,6 @@ import {
   User,
   Building2,
   FileText,
-  MapPin,
   Phone,
   Mail,
   Lock,
@@ -26,32 +25,42 @@ import { Input } from "@/components/atoms/Input";
 import { Select } from "@/components/atoms/Select";
 import { Textarea } from "@/components/atoms/Textarea";
 import { FormField } from "@/components/molecules/FormField";
-import { SEDES_MOCK } from "@/lib/constants/solicitud";
 import {
   getUsuarios,
   saveUsuario,
   updateUsuario,
   toggleUsuarioActivo,
   type Usuario,
+  type RolUsuario,
 } from "@/lib/services/usuarios";
 
 const ROLES_OPTIONS = [
-  { value: "solicitante", label: "Solicitante" },
-  { value: "inspector", label: "Inspector" },
+  { value: "solicitante", label: "Contratista" },
+  { value: "revisor", label: "Revisor" },
+  { value: "sapo", label: "S.A.P.O" },
 ];
 
 /** Badge de rol */
 function RolBadge({ rol }: { rol: string }) {
-  const isInspector = rol === "inspector";
+  let label = rol;
+  let badgeStyle = "bg-blue-50 text-[var(--color-secondary)] border-[var(--color-secondary)]/20";
+
+  if (rol === "solicitante") {
+    label = "Contratista";
+    badgeStyle = "bg-blue-50 text-[var(--color-secondary)] border-[var(--color-secondary)]/20";
+  } else if (rol === "revisor" || rol === "inspector") {
+    label = "Revisor";
+    badgeStyle = "bg-amber-50 text-[var(--color-warning)] border-[var(--color-warning)]/20";
+  } else if (rol === "sapo") {
+    label = "S.A.P.O";
+    badgeStyle = "bg-purple-50 text-purple-700 border-purple-200";
+  }
+
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-        isInspector
-          ? "bg-amber-50 text-[var(--color-warning)] border-[var(--color-warning)]/20"
-          : "bg-blue-50 text-[var(--color-secondary)] border-[var(--color-secondary)]/20"
-      }`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badgeStyle}`}
     >
-      {rol.charAt(0).toUpperCase() + rol.slice(1)}
+      {label}
     </span>
   );
 }
@@ -69,11 +78,6 @@ function EstadoBadge({ activo }: { activo: boolean }) {
       {activo ? "Activo" : "Inactivo"}
     </span>
   );
-}
-
-/** Obtiene el label legible de la sede */
-function getSedeLabel(value: string): string {
-  return SEDES_MOCK.find((s) => s.value === value)?.label ?? value;
 }
 
 // ─── Formulario modal de creación / edición ───────────────────────────────
@@ -98,7 +102,6 @@ function UsuarioFormModal({
   const [password, setPassword] = useState("");
   const [empresa, setEmpresa] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [sede, setSede] = useState("");
   const [nombreCompleto, setNombreCompleto] = useState("");
   const [celular, setCelular] = useState("");
   const [correo, setCorreo] = useState("");
@@ -111,7 +114,6 @@ function UsuarioFormModal({
       setPassword(editingUser.password);
       setEmpresa(editingUser.empresa);
       setDescripcion(editingUser.descripcion);
-      setSede(editingUser.sede);
       setNombreCompleto(editingUser.nombreCompleto);
       setCelular(editingUser.celular);
       setCorreo(editingUser.correo);
@@ -121,7 +123,6 @@ function UsuarioFormModal({
       setPassword("");
       setEmpresa("");
       setDescripcion("");
-      setSede("");
       setNombreCompleto("");
       setCelular("");
       setCorreo("");
@@ -136,7 +137,6 @@ function UsuarioFormModal({
         password !== (editingUser.password || "") ||
         empresa !== editingUser.empresa ||
         descripcion !== editingUser.descripcion ||
-        sede !== editingUser.sede ||
         nombreCompleto !== editingUser.nombreCompleto ||
         celular !== editingUser.celular ||
         correo !== editingUser.correo
@@ -148,13 +148,12 @@ function UsuarioFormModal({
       password !== "" ||
       empresa !== "" ||
       descripcion !== "" ||
-      sede !== "" ||
       nombreCompleto !== "" ||
       celular !== "" ||
       correo !== ""
     );
   }, [
-    rol, username, password, empresa, descripcion, sede, nombreCompleto, celular, correo,
+    rol, username, password, empresa, descripcion, nombreCompleto, celular, correo,
     editingUser
   ]);
 
@@ -185,21 +184,20 @@ function UsuarioFormModal({
     password.trim() !== "" &&
     empresa.trim() !== "" &&
     descripcion.trim() !== "" &&
-    sede !== "" &&
     nombreCompleto.trim() !== "" &&
     celular.trim() !== "" &&
     correo.trim() !== "";
 
   const handleSubmit = () => {
     try {
+      const rolLabel = ROLES_OPTIONS.find((r) => r.value === rol)?.label || rol;
       if (isEditing) {
         updateUsuario(editingUser.id, {
-          rol: rol as "solicitante" | "inspector",
+          rol: rol as RolUsuario,
           username: username.trim(),
           password: password.trim(),
           empresa: empresa.trim(),
           descripcion: descripcion.trim(),
-          sede,
           nombreCompleto: nombreCompleto.trim(),
           celular: celular.trim(),
           correo: correo.trim(),
@@ -214,10 +212,9 @@ function UsuarioFormModal({
         saveUsuario({
           username: username.trim(),
           password: password.trim(),
-          rol: rol as "solicitante" | "inspector",
+          rol: rol as RolUsuario,
           empresa: empresa.trim(),
           descripcion: descripcion.trim(),
-          sede,
           nombreCompleto: nombreCompleto.trim(),
           celular: celular.trim(),
           correo: correo.trim(),
@@ -225,7 +222,7 @@ function UsuarioFormModal({
         Swal.fire({
           icon: "success",
           title: "Usuario creado",
-          text: `El usuario "${username.trim()}" ha sido registrado con el rol de ${rol}.`,
+          text: `El usuario "${username.trim()}" ha sido registrado con el rol de ${rolLabel}.`,
           confirmButtonColor: "var(--color-primary)",
         });
       }
@@ -386,17 +383,7 @@ function UsuarioFormModal({
                   prefix={<FileText size={15} />}
                   maxLength={500}
                   showCount
-                  rows={3}
-                />
-              </FormField>
-              <FormField label="Sede" htmlFor="modal-sede" required>
-                <Select
-                  id="modal-sede"
-                  options={SEDES_MOCK}
-                  placeholder="Selecciona una sede"
-                  value={sede}
-                  onChange={(e) => setSede(e.target.value)}
-                  prefix={<MapPin size={15} />}
+                  rows={4}
                 />
               </FormField>
             </div>
@@ -637,11 +624,6 @@ export function GestionUsuarios() {
                     </div>
                   </th>
                   <th className="px-4 py-3 font-semibold text-[var(--color-text-secondary)] text-xs uppercase tracking-wider">
-                    <div className="flex items-center gap-1.5">
-                      <MapPin size={13} /> Sede
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 font-semibold text-[var(--color-text-secondary)] text-xs uppercase tracking-wider">
                     Estado
                   </th>
                   <th className="px-4 py-3 font-semibold text-[var(--color-text-secondary)] text-xs uppercase tracking-wider">
@@ -678,9 +660,6 @@ export function GestionUsuarios() {
                     </td>
                     <td className="px-4 py-3 text-[var(--color-text-secondary)]">
                       {user.empresa}
-                    </td>
-                    <td className="px-4 py-3 text-[var(--color-text-secondary)]">
-                      {getSedeLabel(user.sede)}
                     </td>
                     <td className="px-4 py-3">
                       <EstadoBadge activo={user.activo} />

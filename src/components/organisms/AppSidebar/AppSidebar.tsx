@@ -55,8 +55,16 @@ export function AppSidebar() {
             <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold block mb-0.5">
               Perfil
             </span>
-            <span className="text-xs font-medium text-[var(--color-primary)] capitalize bg-blue-50 px-2.5 py-0.5 rounded-full inline-block border border-blue-100">
-              {role.toLowerCase()}
+            <span className="text-xs font-semibold text-[var(--color-primary)] bg-blue-50 px-2.5 py-0.5 rounded-full inline-block border border-blue-100">
+              {role.toLowerCase() === "solicitante"
+                ? "Contratista"
+                : role.toLowerCase() === "revisor" || role.toLowerCase() === "inspector"
+                ? "Revisor"
+                : role.toLowerCase() === "sapo"
+                ? "S.A.P.O"
+                : role.toLowerCase() === "admin"
+                ? "Admin"
+                : role}
             </span>
           </div>
         )}

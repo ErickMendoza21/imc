@@ -5,7 +5,7 @@ import { Input } from "@/components/atoms/Input";
 import { Select } from "@/components/atoms/Select";
 import { Textarea } from "@/components/atoms/Textarea";
 import { RiskCard } from "@/components/molecules/RiskCard";
-import { SEDES_MOCK, SERVICES_TAR_MOCK } from "@/lib/constants/solicitud";
+import { TRABAJOS_ALTO_RIESGO_MOCK } from "@/lib/constants/solicitud";
 
 export interface StepDatosSolicitudData {
   empresa: string;
@@ -22,9 +22,10 @@ export interface StepDatosSolicitudData {
 interface StepDatosSolicitudProps {
   data: StepDatosSolicitudData;
   setData: React.Dispatch<React.SetStateAction<any>>;
+  sedesOptions: { value: string; label: string }[];
 }
 
-export function StepDatosSolicitud({ data, setData }: StepDatosSolicitudProps) {
+export function StepDatosSolicitud({ data, setData, sedesOptions }: StepDatosSolicitudProps) {
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,6 +37,29 @@ export function StepDatosSolicitud({ data, setData }: StepDatosSolicitudProps) {
 
   return (
       <div className="flex flex-col gap-8 max-w-4xl mx-auto py-4">
+        {/* ── Sección Sede ── */}
+        <section aria-labelledby="sede-heading">
+          <div className="flex items-center gap-2 mb-3">
+            <MapPin size={18} className="text-[var(--color-secondary)]" />
+            <h2 id="sede-heading" className="text-base font-bold text-[var(--color-title)]">
+              Sede a la que va a asistir
+              <span className="text-[var(--color-danger)] ml-0.5" aria-hidden="true">*</span>
+            </h2>
+          </div>
+          <div className="max-w-md">
+            <FormField label="Selecciona la sede" htmlFor="solicitud-sede" required>
+              <Select
+                id="solicitud-sede"
+                options={sedesOptions}
+                placeholder="Seleccione una sede"
+                value={data.sede || ""}
+                onChange={(e) => setData((d: any) => ({ ...d, sede: e.target.value }))}
+                prefix={<MapPin size={15} />}
+              />
+            </FormField>
+          </div>
+        </section>
+
         {/* ── Sección clasificación ── */}
         <section aria-labelledby="clasificacion-heading">
           <div className="flex items-center gap-2 mb-4">
@@ -68,26 +92,25 @@ export function StepDatosSolicitud({ data, setData }: StepDatosSolicitudProps) {
           </div>
         </section>
 
-        {/* ── Lista de Servicios ── */}
+        {/* ── Lista de Trabajos de Alto Riesgo ── */}
         {data.clasificacion && (
           <section className="bg-white border border-[var(--color-border)] rounded-xl p-6 shadow-sm [animation:card-in_0.3s_ease-out_both]">
             <div className="flex flex-col mb-4">
               <h3 className="text-[0.95rem] font-semibold text-[var(--color-title)]">
-                Seleccione los servicios a solicitar
+                Trabajos de alto riesgo
               </h3>
               <p className="text-sm text-[var(--color-text-secondary)]">
-                Puede seleccionar uno o más servicios. Algunos requerirán consideraciones especiales.
+                Seleccione uno o más trabajos de alto riesgo que correspondan a su solicitud.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {SERVICES_TAR_MOCK.map((servicio) => {
-                const isSelected = data.serviciosSeleccionados?.includes(servicio.id);
-                const isCasoSelected = data.casosEspecialesSeleccionados?.includes(servicio.id);
+              {TRABAJOS_ALTO_RIESGO_MOCK.map((trabajo) => {
+                const isSelected = data.serviciosSeleccionados?.includes(trabajo.id);
 
                 return (
                   <div
-                    key={servicio.id}
+                    key={trabajo.id}
                     className={`
                       relative flex flex-col p-4 rounded-lg border transition-all duration-200
                       ${isSelected
@@ -96,7 +119,7 @@ export function StepDatosSolicitud({ data, setData }: StepDatosSolicitudProps) {
                       }
                     `}
                   >
-                    <label className="flex items-start cursor-pointer w-full">
+                    <label className="flex items-center cursor-pointer w-full select-none">
                       <div className="flex items-center h-5">
                         <input
                           type="checkbox"
@@ -105,59 +128,77 @@ export function StepDatosSolicitud({ data, setData }: StepDatosSolicitudProps) {
                           onChange={(e) => {
                             const currentSelected = data.serviciosSeleccionados || [];
                             const currentCasos = data.casosEspecialesSeleccionados || [];
-                            let newSelected;
+                            const casosIds = (trabajo.casosEspeciales || []).map((c) => c.id);
+                            let newSelected: string[];
                             let newCasos = [...currentCasos];
 
                             if (e.target.checked) {
-                              newSelected = [...currentSelected, servicio.id];
+                              newSelected = [...currentSelected, trabajo.id];
                             } else {
-                              newSelected = currentSelected.filter((id: string) => id !== servicio.id);
-                              // Si desmarca el servicio, también desmarcamos su caso especial si lo tenía
-                              newCasos = newCasos.filter((id: string) => id !== servicio.id);
+                              newSelected = currentSelected.filter((id: string) => id !== trabajo.id);
+                              // Si desmarca el trabajo, desmarcamos también sus casos especiales
+                              newCasos = newCasos.filter((id: string) => !casosIds.includes(id));
                             }
 
                             setData((d: any) => ({
                               ...d,
                               serviciosSeleccionados: newSelected,
-                              casosEspecialesSeleccionados: newCasos
+                              casosEspecialesSeleccionados: newCasos,
                             }));
                           }}
                         />
                       </div>
-                      <div className="ml-3 flex flex-col justify-center h-5">
-                        <span className={`text-sm font-medium ${isSelected ? "text-[var(--color-title)]" : "text-[var(--color-title)]/80"}`}>
-                          {servicio.label}
+                      <div className="ml-3 flex flex-col justify-center">
+                        <span className={`text-sm font-semibold tracking-wide ${isSelected ? "text-[var(--color-title)]" : "text-[var(--color-title)]/80"}`}>
+                          {trabajo.label}
                         </span>
                       </div>
                     </label>
 
-                    {/* Checkbox anidado para el caso especial (solo visible si el servicio está seleccionado y tiene caso especial) */}
-                    {isSelected && servicio.casoEspecial && (
-                      <label className="flex items-start cursor-pointer mt-3 ml-7 p-2 bg-white/60 rounded border border-[var(--color-border)]">
-                        <div className="flex items-center h-5">
-                          <input
-                            type="checkbox"
-                            className="w-3.5 h-3.5 text-[var(--color-warning)] border-gray-300 rounded focus:ring-[var(--color-warning)] cursor-pointer"
-                            checked={isCasoSelected || false}
-                            onChange={(e) => {
-                              const currentCasos = data.casosEspecialesSeleccionados || [];
-                              let newCasos;
-                              if (e.target.checked) {
-                                newCasos = [...currentCasos, servicio.id];
-                              } else {
-                                newCasos = currentCasos.filter((id: string) => id !== servicio.id);
-                              }
-                              setData((d: any) => ({ ...d, casosEspecialesSeleccionados: newCasos }));
-                            }}
-                          />
-                        </div>
-                        <div className="ml-2 flex flex-col">
-                          <span className="text-xs text-[var(--color-text-secondary)] flex items-center gap-1.5 font-medium">
-                            <AlertTriangle size={12} className="text-[var(--color-warning)]" />
-                            {servicio.casoEspecial}
-                          </span>
-                        </div>
-                      </label>
+                    {/* Checkboxes para casos especiales cuando el TAR está seleccionado */}
+                    {isSelected && trabajo.casosEspeciales && trabajo.casosEspeciales.length > 0 && (
+                      <div className="flex flex-col gap-2 mt-3 ml-7 pt-2.5 border-t border-[var(--color-border)]/70">
+                        <span className="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
+                          Casos especiales:
+                        </span>
+                        {trabajo.casosEspeciales.map((caso) => {
+                          const isCasoSelected = (data.casosEspecialesSeleccionados || []).includes(caso.id);
+
+                          return (
+                            <label
+                              key={caso.id}
+                              className="flex items-start gap-2.5 p-2 bg-white/80 rounded-lg border border-[var(--color-border)] cursor-pointer hover:bg-white transition-colors"
+                            >
+                              <div className="flex items-center h-4 mt-0.5">
+                                <input
+                                  type="checkbox"
+                                  className="w-3.5 h-3.5 text-[var(--color-warning)] border-gray-300 rounded focus:ring-[var(--color-warning)] cursor-pointer"
+                                  checked={isCasoSelected}
+                                  onChange={(e) => {
+                                    const currentCasos = data.casosEspecialesSeleccionados || [];
+                                    let newCasos: string[];
+
+                                    if (e.target.checked) {
+                                      newCasos = [...currentCasos, caso.id];
+                                    } else {
+                                      newCasos = currentCasos.filter((id: string) => id !== caso.id);
+                                    }
+
+                                    setData((d: any) => ({
+                                      ...d,
+                                      casosEspecialesSeleccionados: newCasos,
+                                    }));
+                                  }}
+                                />
+                              </div>
+                              <span className="text-xs text-[var(--color-text-secondary)] flex items-center gap-1.5 font-medium">
+                                <AlertTriangle size={12} className="text-[var(--color-warning)] flex-shrink-0" />
+                                {caso.label}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 );

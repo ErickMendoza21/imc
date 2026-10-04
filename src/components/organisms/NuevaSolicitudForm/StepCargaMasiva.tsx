@@ -1,9 +1,13 @@
-import { FileText, Upload, CheckSquare, Square } from "lucide-react";
+"use client";
+
+import Swal from "sweetalert2";
+import { FileText, Upload, CheckSquare, Square, Plus, Trash2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/atoms/Button";
 import { Input } from "@/components/atoms/Input";
 import { Persona } from "./StepPersonal";
 
 export interface CargaMasivaItem {
+  id: string; // ID único temporal para el formulario
   archivo: File | null;
   fechaEmision: string;
   personalIds: string[];
@@ -12,7 +16,7 @@ export interface CargaMasivaItem {
 export interface StepCargaMasivaData {
   clasificacion: "TAR" | "NO_TAR" | "";
   personal: Persona[];
-  cargaMasiva: Record<string, CargaMasivaItem>;
+  cargaMasiva: Record<string, CargaMasivaItem[]>;
 }
 
 interface StepCargaMasivaProps {
@@ -32,185 +36,289 @@ const DOCS_TAR_EXTRAS = [
 
 export function StepCargaMasiva({ data, setData }: StepCargaMasivaProps) {
   const isTar = data.clasificacion === "TAR";
-  
-  const docsParaMostrar = isTar 
-    ? [...DOCS_BASE, ...DOCS_TAR_EXTRAS]
-    : DOCS_BASE;
+  const docsParaMostrar = isTar ? [...DOCS_BASE, ...DOCS_TAR_EXTRAS] : DOCS_BASE;
+  const totalPersonal = data.personal || [];
 
-  const handleChangeFecha = (id: string, fecha: string) => {
+  // ── Helpers de Estado ──
+  const getDocItems = (docId: string): CargaMasivaItem[] => {
+    const items = data.cargaMasiva?.[docId];
+    if (Array.isArray(items) && items.length > 0) return items;
+    // Si no hay ninguno, inicializamos con 1 vacío
+    return [{ id: crypto.randomUUID(), archivo: null, fechaEmision: "", personalIds: [] }];
+  };
+
+  const updateDocItems = (docId: string, items: CargaMasivaItem[]) => {
     setData((prev: any) => ({
       ...prev,
       cargaMasiva: {
         ...prev.cargaMasiva,
-        [id]: {
-          ...(prev.cargaMasiva?.[id] || { archivo: null, personalIds: [] }),
-          fechaEmision: fecha,
-        },
+        [docId]: items,
       },
     }));
   };
 
-  const handleFileChange = (id: string, file: File | null) => {
-    setData((prev: any) => ({
-      ...prev,
-      cargaMasiva: {
-        ...prev.cargaMasiva,
-        [id]: {
-          ...(prev.cargaMasiva?.[id] || { fechaEmision: "", personalIds: [] }),
-          archivo: file,
-        },
-      },
-    }));
+  // ── Manejo de Archivos/Pólizas ──
+  const handleAddFile = (docId: string) => {
+    const current = getDocItems(docId);
+    updateDocItems(docId, [
+      ...current,
+      { id: crypto.randomUUID(), archivo: null, fechaEmision: "", personalIds: [] },
+    ]);
   };
 
-  const handleTogglePersonal = (docId: string, personaId: string) => {
-    setData((prev: any) => {
-      const docData = prev.cargaMasiva?.[docId] || { archivo: null, fechaEmision: "", personalIds: [] };
-      const currentIds = docData.personalIds;
-      const newIds = currentIds.includes(personaId)
-        ? currentIds.filter((id: string) => id !== personaId)
-        : [...currentIds, personaId];
+  const handleRemoveFile = (docId: string, fileId: string) => {
+    const current = getDocItems(docId);
+    if (current.length <= 1) return;
 
-      return {
-        ...prev,
-        cargaMasiva: {
-          ...prev.cargaMasiva,
-          [docId]: {
-            ...docData,
-            personalIds: newIds,
-          },
-        },
-      };
+    Swal.fire({
+      icon: "warning",
+      title: "¿Eliminar este archivo?",
+      text: "Se perderá el archivo cargado y las asignaciones de personal vinculadas a este archivo.",
+      showCancelButton: true,
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "var(--color-danger)",
+      cancelButtonColor: "var(--color-primary)",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        updateDocItems(docId, current.filter((i) => i.id !== fileId));
+      }
     });
   };
 
-  const handleToggleAllPersonal = (docId: string, selectAll: boolean) => {
-    setData((prev: any) => {
-      const docData = prev.cargaMasiva?.[docId] || { archivo: null, fechaEmision: "", personalIds: [] };
-      const newIds = selectAll ? (data.personal || []).map(p => p.id) : [];
+  const handleChangeFile = (docId: string, fileId: string, file: File | null) => {
+    const current = getDocItems(docId);
+    updateDocItems(docId, current.map((i) => (i.id === fileId ? { ...i, archivo: file } : i)));
+  };
 
-      return {
-        ...prev,
-        cargaMasiva: {
-          ...prev.cargaMasiva,
-          [docId]: {
-            ...docData,
-            personalIds: newIds,
-          },
-        },
-      };
-    });
+  const handleChangeDate = (docId: string, fileId: string, date: string) => {
+    const current = getDocItems(docId);
+    updateDocItems(docId, current.map((i) => (i.id === fileId ? { ...i, fechaEmision: date } : i)));
+  };
+
+  // ── Manejo de Personal Asignado ──
+  const handleTogglePersonal = (docId: string, fileId: string, personaId: string) => {
+    const current = getDocItems(docId);
+    updateDocItems(
+      docId,
+      current.map((item) => {
+        if (item.id === fileId) {
+          const ids = item.personalIds;
+          return {
+            ...item,
+            personalIds: ids.includes(personaId)
+              ? ids.filter((id) => id !== personaId)
+              : [...ids, personaId],
+          };
+        }
+        return item;
+      })
+    );
+  };
+
+  const handleToggleAll = (docId: string, fileId: string, availableIds: string[], selectAll: boolean) => {
+    const current = getDocItems(docId);
+    updateDocItems(
+      docId,
+      current.map((item) => {
+        if (item.id === fileId) {
+          return {
+            ...item,
+            personalIds: selectAll ? [...availableIds] : [],
+          };
+        }
+        return item;
+      })
+    );
   };
 
   return (
-    <section className="px-8 py-6 flex flex-col gap-5">
+    <section className="px-8 py-6 flex flex-col gap-6">
       <div className="flex flex-col gap-1 mb-2">
-        <h2 className="text-lg font-bold text-[var(--color-title)]">
-          Carga Masiva de Documentos
-        </h2>
+        <h2 className="text-lg font-bold text-[var(--color-title)]">Carga Masiva de Documentos</h2>
         <p className="text-sm text-[var(--color-text-secondary)]">
-          Sube los documentos generales y selecciona a qué personal aplican. Todos los documentos mostrados son obligatorios.
+          Sube los documentos generales y selecciona a qué personal aplican. Si un documento (ej. SCTR) está en varias pólizas o archivos, añade otro y marca a los trabajadores restantes. No puede quedar ningún trabajador sin anexar.
         </p>
       </div>
 
-      {(data.personal || []).length === 0 ? (
+      {totalPersonal.length === 0 ? (
         <div className="p-8 text-center border-2 border-dashed border-[var(--color-border)] rounded-xl bg-[var(--color-bg-soft)]">
           <p className="text-[var(--color-text-secondary)]">
             No tienes personal registrado. Vuelve al paso anterior para añadir personal.
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-8">
           {docsParaMostrar.map((doc) => {
-            const docData = data.cargaMasiva?.[doc.id] || { fechaEmision: "", archivo: null, personalIds: [] };
-            const isAllSelected = data.personal && docData.personalIds.length === data.personal.length;
+            const fileItems = getDocItems(doc.id);
+
+            // Calcular cuántos trabajadores en total están cubiertos por este doc
+            const allCoveredIds = new Set<string>();
+            fileItems.forEach((f) => f.personalIds.forEach((id) => allCoveredIds.add(id)));
+            const allCovered = allCoveredIds.size === totalPersonal.length;
 
             return (
-              <div
-                key={doc.id}
-                className="flex flex-col md:flex-row gap-6 p-5 rounded-xl border border-[var(--color-border)] bg-white shadow-sm"
-              >
-                {/* Lado izquierdo: Documento */}
-                <div className="flex-1 flex flex-col gap-4">
-                  <div className="flex items-start gap-4">
-                    <div className="shrink-0 text-[var(--color-primary)] mt-1">
-                      <FileText size={28} strokeWidth={1.5} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-[var(--color-primary)] mb-1 pr-2 leading-tight" title={doc.label}>
-                        {doc.label}
-                      </p>
-                      <p className="text-[10px] text-[var(--color-text-secondary)] mb-3 font-medium">
-                        Formatos permitidos: {doc.accept.replace(/\./g, '').toUpperCase()}
-                      </p>
-                      
-                      <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded border border-[var(--color-border)] bg-[var(--color-primary-light)]/50 hover:bg-[var(--color-primary-light)] text-sm font-medium text-[var(--color-primary)] transition-colors">
-                        <Upload size={14} />
-                        {docData.archivo ? docData.archivo.name : "Cargar archivo"}
-                        <input
-                          type="file"
-                          accept={doc.accept}
-                          className="hidden"
-                          onChange={(e) => handleFileChange(doc.id, e.target.files?.[0] || null)}
-                        />
-                      </label>
-                    </div>
+              <div key={doc.id} className="flex flex-col gap-3">
+                {/* Encabezado del documento */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-[var(--color-primary)]">
+                    <FileText size={24} />
+                    <h3 className="font-bold">{doc.label}</h3>
                   </div>
-
-                  {/* Fecha de Emisión */}
-                  {doc.hasFecha && (
-                    <div className="w-full max-w-[200px] flex flex-col gap-1.5 pl-11">
-                      <label
-                        htmlFor={`fecha-${doc.id}`}
-                        className="text-xs font-semibold text-[var(--color-text-secondary)]"
-                      >
-                        Fecha de emisión
-                      </label>
-                      <Input
-                        id={`fecha-${doc.id}`}
-                        type="date"
-                        value={docData.fechaEmision}
-                        onChange={(e) => handleChangeFecha(doc.id, e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Lado derecho: Selección de Personal */}
-                <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col gap-2">
-                  <div className="flex items-center justify-between pb-2 border-b border-[var(--color-border)]">
-                    <span className="text-xs font-semibold text-[var(--color-text-secondary)]">Personal asociado</span>
-                    <button
+                  <div className="flex items-center gap-4">
+                    {allCovered ? (
+                      <span className="text-xs font-semibold text-[var(--color-success)] bg-green-50 px-2 py-1 rounded">
+                        ✓ Personal 100% cubierto
+                      </span>
+                    ) : (
+                      <span className="text-xs font-semibold text-[var(--color-danger)] flex items-center gap-1">
+                        <AlertCircle size={14} /> Faltan asignar {totalPersonal.length - allCoveredIds.size} trab.
+                      </span>
+                    )}
+                    <Button
                       type="button"
-                      className="text-xs text-[var(--color-primary)] hover:underline flex items-center gap-1"
-                      onClick={() => handleToggleAllPersonal(doc.id, !isAllSelected)}
+                      variant="outline"
+                      className="text-xs py-1 px-3 border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white"
+                      onClick={() => handleAddFile(doc.id)}
+                      disabled={allCovered} // Opcional: deshabilitar si ya están todos cubiertos
+                      title={allCovered ? "Todos los trabajadores ya están cubiertos" : "Añadir otro archivo para los restantes"}
                     >
-                      {isAllSelected ? (
-                        <><CheckSquare size={14} /> Desmarcar todos</>
-                      ) : (
-                        <><Square size={14} /> Marcar todos</>
-                      )}
-                    </button>
+                      <Plus size={14} className="mr-1" />
+                      Agregar póliza/archivo
+                    </Button>
                   </div>
-                  
-                  <div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-1">
-                    {data.personal.map(p => (
-                      <label key={p.id} className="flex items-center gap-2 p-1.5 hover:bg-[var(--color-bg-soft)] rounded cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
-                          checked={docData.personalIds.includes(p.id)}
-                          onChange={() => handleTogglePersonal(doc.id, p.id)}
-                        />
-                        <span className="text-xs text-[var(--color-text)] truncate">{p.nombre} ({p.dni})</span>
-                      </label>
-                    ))}
-                  </div>
-                  {docData.personalIds.length === 0 && (
-                     <p className="text-[10px] text-[var(--color-danger)] mt-1">Debe seleccionar al menos a una persona.</p>
-                  )}
                 </div>
 
+                <div className="flex flex-col gap-4 pl-4 border-l-2 border-[var(--color-border)]">
+                  {fileItems.map((fileItem, idx) => {
+                    // Trabajadores asignados a OTROS archivos de este mismo documento
+                    const assignedToOthers = new Set<string>();
+                    fileItems.forEach((otherFile) => {
+                      if (otherFile.id !== fileItem.id) {
+                        otherFile.personalIds.forEach((id) => assignedToOthers.add(id));
+                      }
+                    });
+
+                    // Solo mostramos los trabajadores que NO están en otros archivos
+                    const availableWorkers = totalPersonal.filter((p) => !assignedToOthers.has(p.id));
+                    const isAllSelected = fileItem.personalIds.length === availableWorkers.length && availableWorkers.length > 0;
+
+                    return (
+                      <div
+                        key={fileItem.id}
+                        className="flex flex-col lg:flex-row gap-6 p-4 rounded-xl border border-[var(--color-border)] bg-white shadow-sm transition-all hover:border-[var(--color-secondary)]/30"
+                      >
+                        {/* Izquierda: Archivo y Fecha */}
+                        <div className="flex-1 flex flex-col gap-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
+                              Archivo {idx + 1}
+                            </span>
+                            {fileItems.length > 1 && (
+                              <button
+                                type="button"
+                                className="text-[var(--color-danger)] hover:bg-red-50 p-1.5 rounded transition-colors"
+                                onClick={() => handleRemoveFile(doc.id, fileItem.id)}
+                                title="Eliminar este archivo"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+
+                          <label className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-bg-soft)] text-sm font-medium text-[var(--color-primary)] transition-all">
+                            <Upload size={16} />
+                            <span className="truncate max-w-[200px]">
+                              {fileItem.archivo ? fileItem.archivo.name : "Subir documento"}
+                            </span>
+                            <input
+                              type="file"
+                              accept={doc.accept}
+                              className="hidden"
+                              onChange={(e) => handleChangeFile(doc.id, fileItem.id, e.target.files?.[0] || null)}
+                            />
+                          </label>
+
+                          {doc.hasFecha && (
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-xs font-semibold text-[var(--color-text-secondary)]">
+                                Fecha de emisión <span className="text-[var(--color-danger)]">*</span>
+                              </label>
+                              <Input
+                                type="date"
+                                className="w-full max-w-[200px]"
+                                value={fileItem.fechaEmision}
+                                onChange={(e) => handleChangeDate(doc.id, fileItem.id, e.target.value)}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Derecha: Stock de personas */}
+                        <div className="w-full lg:w-3/5 flex flex-col gap-2 bg-[var(--color-bg-soft)] rounded-lg p-3 border border-[var(--color-border)]/50">
+                          <div className="flex items-center justify-between pb-2 border-b border-[var(--color-border)]">
+                            <span className="text-xs font-bold text-[var(--color-title)]">
+                              Trabajadores cubiertos por este archivo
+                            </span>
+                            {availableWorkers.length > 0 && (
+                              <button
+                                type="button"
+                                className="text-[11px] font-semibold text-[var(--color-primary)] hover:underline flex items-center gap-1"
+                                onClick={() =>
+                                  handleToggleAll(doc.id, fileItem.id, availableWorkers.map((w) => w.id), !isAllSelected)
+                                }
+                              >
+                                {isAllSelected ? (
+                                  <>
+                                    <Square size={13} /> Desmarcar todos
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckSquare size={13} /> Marcar todos los disponibles
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col gap-1 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+                            {availableWorkers.length === 0 ? (
+                              <p className="text-xs text-[var(--color-text-secondary)] py-4 text-center italic">
+                                No hay trabajadores disponibles (todos asignados a otros archivos).
+                              </p>
+                            ) : (
+                              availableWorkers.map((p) => (
+                                <label
+                                  key={p.id}
+                                  className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors border ${
+                                    fileItem.personalIds.includes(p.id)
+                                      ? "bg-white border-[var(--color-secondary)]/50 shadow-sm"
+                                      : "hover:bg-white border-transparent"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="w-4 h-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)] accent-[var(--color-primary)]"
+                                    checked={fileItem.personalIds.includes(p.id)}
+                                    onChange={() => handleTogglePersonal(doc.id, fileItem.id, p.id)}
+                                  />
+                                  <span className="text-[13px] text-[var(--color-text)] font-medium truncate">
+                                    {p.nombre} <span className="text-[11px] text-gray-500 font-normal">({p.dni})</span>
+                                  </span>
+                                </label>
+                              ))
+                            )}
+                          </div>
+                          {fileItem.personalIds.length === 0 && availableWorkers.length > 0 && (
+                            <p className="text-[10px] font-bold text-[var(--color-danger)] mt-1">
+                              Debes seleccionar al menos a una persona.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
